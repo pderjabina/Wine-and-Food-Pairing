@@ -336,6 +336,7 @@ window.addEventListener('load', () => {
       el?.scrollIntoView({behavior:'smooth', block:'start'});
     });
   });
+
   // dark mode toggle + сохранение
   const KEY='wf-dark', body=document.body, t=document.getElementById('theme-toggle');
   if(localStorage.getItem(KEY)==='1'){ body.classList.add('dark'); t.textContent='Light'; }
@@ -347,3 +348,4 @@ window.addEventListener('load', () => {
 </script>
 </body>
 </html>
+
