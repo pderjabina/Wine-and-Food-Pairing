@@ -171,56 +171,76 @@ $("#btn-preview").addEventListener("click", ()=>{
 });
 
 // ---------- EDA ----------
-$("#btn-eda").addEventListener("click", ()=>{
-  // 1) статы рисуем в отдельный контейнер
-  const statsEl = $("#eda-stats");
-  statsEl.innerHTML = "";
+$("#btn-eda").addEventListener("click", () => {
+  // Узлы: верхняя плашка со статистикой и контейнер с графиками/таблицами
+  const hostStats  = $("#eda-stats");  // <div id="eda-stats" class="row"></div>
+  const hostCharts = $("#eda");        // <div id="eda" class="row"> ... канвасы ... </div>
 
-  // Basic stats
+  // Очистим статусы и удалим предыдущие таблицы (если были)
+  hostStats.innerHTML = "";
+  [...hostCharts.querySelectorAll(".row-3")].forEach(n => n.remove());
+
+  // ---- Basic stats
   const n = state.df.length;
-  const qualCounts = countBy(state.df, "pairing_quality");
-  const wc = countBy(state.df, "wine_category");
-  const fc = countBy(state.df, "food_category");
-  const cu = countBy(state.df, "cuisine");
+  const distinctWines    = uniq(state.df.map(r => r.wine_type)).length;
+  const distinctFoods    = uniq(state.df.map(r => r.food_item)).length;
+  const distinctCuisines = uniq(state.df.map(r => r.cuisine)).length;
 
-  const statCard = document.createElement("div");
-  statCard.className = "row";
-  statCard.innerHTML = `
-    <div class="card"><b>Rows:</b> ${n}<br/><b>Distinct wines:</b> ${uniq(state.df.map(r=>r.wine_type)).length}
-      <br/><b>Food items:</b> ${uniq(state.df.map(r=>r.food_item)).length}
-      <br/><b>Cuisines:</b> ${uniq(state.df.map(r=>r.cuisine)).length}
+  hostStats.innerHTML = `
+    <div class="card">
+      <b>Rows:</b> ${n}<br/>
+      <b>Distinct wines:</b> ${distinctWines}<br/>
+      <b>Food items:</b> ${distinctFoods}<br/>
+      <b>Cuisines:</b> ${distinctCuisines}
     </div>
-    <div class="card"><b>Class balance (1–5):</b><div id="eda-qual"></div></div>
+    <div class="card">
+      <b>Class balance (1–5):</b>
+      <div style="height:12px"></div>
+      <!-- при желании сюда можно положить мини-легенду -->
+    </div>
   `;
-  statsEl.appendChild(statCard);
 
-  // 2) считаем частоты для канвасов (канвасы уже в разметке)
-  const qCounts = new Map(), wcCounts = new Map(), fcCounts = new Map(), cuCounts = new Map();
-  for(const r of state.df){
-    qCounts.set(String(r.pairing_quality), (qCounts.get(String(r.pairing_quality))||0)+1);
-    wcCounts.set(r.wine_category, (wcCounts.get(r.wine_category)||0)+1);
-    fcCounts.set(r.food_category, (fcCounts.get(r.food_category)||0)+1);
-    cuCounts.set(r.cuisine, (cuCounts.get(r.cuisine)||0)+1);
+  // ---- Считаем частоты для графиков
+  const qCounts  = new Map();
+  const wcCounts = new Map();
+  const fcCounts = new Map();
+  const cuCounts = new Map();
+
+  for (const r of state.df) {
+    qCounts.set(String(r.pairing_quality), (qCounts.get(String(r.pairing_quality)) || 0) + 1);
+    wcCounts.set(r.wine_category,        (wcCounts.get(r.wine_category)        || 0) + 1);
+    fcCounts.set(r.food_category,        (fcCounts.get(r.food_category)        || 0) + 1);
+    cuCounts.set(r.cuisine,              (cuCounts.get(r.cuisine)              || 0) + 1);
   }
 
-  // 3) рисуем гистограммы Chart.js (цветовые палитры уже подключены в хелперах)
+  // ---- Рисуем 4 гистограммы (цвета берутся из Chart.js-хелперов)
+  // В хелперах у нас есть destroyChart(), так что перерисовка безопасна
   drawQualityChart(qCounts);
   drawWineCatChart(wcCounts);
   drawFoodCatChart(fcCounts);
   drawCuisineChart(cuCounts);
 
-  // 4) HTML топ-10 (оставляем как было)
+  // ---- Таблицы top-10 (под графиками)
   const tblRow = document.createElement("div");
   tblRow.className = "row-3";
+
   const mkTableCard = (title, pairs) => `
     <div class="card">
       <h3 style="margin-top:0">${title}</h3>
-      ${toTable(pairs.slice(0,10).map(([k,v])=>({Key:k, Count:v})), ["Key","Count"])}
-    </div>`;
-  tblRow.innerHTML = mkTableCard("Top Wine Types", countBy(state.df, "wine_type"))
-                   + mkTableCard("Top Food Items", countBy(state.df, "food_item"))
-                   + mkTableCard("Top Cuisines", cu);
-  statsEl.appendChild(tblRow);
+      ${toTable(pairs.slice(0, 10).map(([k, v]) => ({ Key: k, Count: v })), ["Key", "Count"])}
+    </div>
+  `;
+
+  const topWineTypes = countBy(state.df, "wine_type");
+  const topFoodItems = countBy(state.df, "food_item");
+  const topCuisines  = countBy(state.df, "cuisine");
+
+  tblRow.innerHTML =
+      mkTableCard("Top Wine Types", topWineTypes)
+    + mkTableCard("Top Food Items", topFoodItems)
+    + mkTableCard("Top Cuisines",   topCuisines);
+
+  hostCharts.appendChild(tblRow);
 });
 
 
