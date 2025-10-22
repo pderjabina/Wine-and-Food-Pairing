@@ -19,26 +19,29 @@ const state = {
 };
 
 // ---------- Helpers ----------
+// ---------- Helpers ----------
 const $ = (sel) => document.querySelector(sel);
 const setStatus = (msg) => $("#status").textContent = msg;
 
-function head(arr, n=10){ return arr.slice(0, n); }
+function head(arr, n = 10){ return arr.slice(0, n); }
 function uniq(arr){ return [...new Set(arr)]; }
 function countBy(arr, key){
   const m = new Map();
-  for (const r of arr){ const k = r[key]; m.set(k, (m.get(k)||0)+1); }
-  return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+  for (const r of arr){ const k = r[key]; m.set(k, (m.get(k) || 0) + 1); }
+  return [...m.entries()].sort((a,b)=> b[1] - a[1]);
 }
 function toTable(rows, headers){
-  const htmlHead = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
-  const htmlRows = rows.map(r=>`<tr>${headers.map(h=>`<td>${r[h]}</td>`).join("")}</tr>`).join("");
+  const htmlHead = `<tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>`;
+  const htmlRows = rows.map(r => `<tr>${headers.map(h => `<td>${r[h]}</td>`).join("")}</tr>`).join("");
   return `<table>${htmlHead}${htmlRows}</table>`;
 }
 function showHTML(id, html){ $(id).innerHTML = html; }
+
+/* ----- class weights for balanced training ----- */
 function computeClassWeights(oneHotYtrain){
   // oneHotYtrain: Tensor [N,5] с one-hot метками (классы 0..4)
-  const counts = oneHotYtrain.sum(0);        // [5]
-  const arr = counts.arraySync();            // [c0..c4]
+  const counts = oneHotYtrain.sum(0);          // [5]
+  const arr = counts.arraySync();              // [c0..c4]
   const total = arr.reduce((a,b)=>a+b,0);
   const mean  = total / arr.length;
 
@@ -46,10 +49,92 @@ function computeClassWeights(oneHotYtrain){
   const raw = arr.map(c => Math.max(0.5, Math.min(2.5, mean / (c || 1))));
   // нормализуем к среднему ≈ 1.0
   const scale = raw.reduce((a,b)=>a+b,0) / raw.length;
-  const weights = raw.map(w => w/scale);
+  const weights = raw.map(w => w / scale);
 
   return { 0: weights[0], 1: weights[1], 2: weights[2], 3: weights[3], 4: weights[4] };
 }
+
+/* ----- Chart.js helpers for colorful EDA ----- */
+const charts = {};                                       // registry to re-render safely
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+function grad(ctx, from, to){
+  const g = ctx.createLinearGradient(0,0,0,200);
+  g.addColorStop(0, from); g.addColorStop(1, to);
+  return g;
+}
+function barOpts(){
+  const muted = getComputedStyle(document.body).getPropertyValue('--muted');
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display:false } },
+    scales: {
+      x: { ticks: { color: muted } },
+      y: { ticks: { color: muted }, grid: { color: 'rgba(148,163,184,.25)' } }
+    }
+  };
+}
+
+/* ----- EDA charts ----- */
+// 1) Quality: 1..5 от красного к зелёному
+function drawQualityChart(counts){
+  const el = document.getElementById('eda-quality'); if(!el) return;
+  const ctx = el.getContext('2d'); destroyChart('eda-quality');
+  const labels = ['1','2','3','4','5'];
+  const colors = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e'];
+  const data = labels.map(l => counts.get(l) || 0);
+  charts['eda-quality'] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 8 }] },
+    options: barOpts()
+  });
+}
+
+// 2) Wine categories: палитра розово-красных оттенков
+function drawWineCatChart(counts){
+  const el = document.getElementById('eda-winecat'); if(!el) return;
+  const ctx = el.getContext('2d'); destroyChart('eda-winecat');
+  const labels = [...counts.keys()];
+  const base = ['#fff1f2','#ffe4e6','#fecdd3','#fda4af','#fb7185','#f43f5e','#e11d48','#be123c'];
+  const colors = labels.map((_,i) => base[i % base.length]);
+  const data = labels.map(k => counts.get(k) || 0);
+  charts['eda-winecat'] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 8 }] },
+    options: barOpts()
+  });
+}
+
+// 3) Food categories: единый градиент фиолет → розовый
+function drawFoodCatChart(counts){
+  const el = document.getElementById('eda-foodcat'); if(!el) return;
+  const ctx = el.getContext('2d'); destroyChart('eda-foodcat');
+  const labels = [...counts.keys()];
+  const data = labels.map(k => counts.get(k) || 0);
+  const g = grad(ctx, '#6b4de6', '#f472b6');
+  charts['eda-foodcat'] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: g, borderRadius: 8 }] },
+    options: barOpts()
+  });
+}
+
+// 4) Cuisines: единый градиент синий → фиолет
+function drawCuisineChart(counts){
+  const el = document.getElementById('eda-cuisines'); if(!el) return;
+  const ctx = el.getContext('2d'); destroyChart('eda-cuisines');
+  const labels = [...counts.keys()];
+  const data = labels.map(k => counts.get(k) || 0);
+  const g = grad(ctx, '#60a5fa', '#8b5cf6');
+  charts['eda-cuisines'] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: g, borderRadius: 8 }] },
+    options: barOpts()
+  });
+}
+
+// ---------- Load CSV ----------
+
 
 
 // ---------- Load CSV ----------
@@ -111,6 +196,21 @@ $("#btn-eda").addEventListener("click", ()=>{
   `;
   el.appendChild(statCard);
 
+  // counts
+const qCounts = new Map(), wcCounts = new Map(), fcCounts = new Map(), cuCounts = new Map();
+for(const r of state.df){
+  qCounts.set(String(r.pairing_quality), (qCounts.get(String(r.pairing_quality))||0)+1);
+  wcCounts.set(r.wine_category, (wcCounts.get(r.wine_category)||0)+1);
+  fcCounts.set(r.food_category, (fcCounts.get(r.food_category)||0)+1);
+  cuCounts.set(r.cuisine, (cuCounts.get(r.cuisine)||0)+1);
+}
+// draw
+drawQualityChart(qCounts);
+drawWineCatChart(wcCounts);
+drawFoodCatChart(fcCounts);
+drawCuisineChart(cuCounts);
+
+/*
   // tfjs-vis bar charts
   const surface1 = { name: 'Quality distribution', tab: 'EDA' };
   const qualSeries = qualCounts.map(([k,v])=>({ index:k, value:v }));
@@ -124,7 +224,7 @@ $("#btn-eda").addEventListener("click", ()=>{
 
   const surface4 = { name: 'Cuisines', tab: 'EDA' };
   tfvis.render.barchart(surface4, cu.slice(0,20).map(([k,v])=>({index:k, value:v})), { xLabel:'Cuisine', yLabel:'Count' });
-
+*/
   // HTML top-10 tables
   const tblRow = document.createElement("div");
   tblRow.className = "row-3";
