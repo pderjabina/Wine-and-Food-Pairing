@@ -165,18 +165,29 @@ $("#btn-prep").addEventListener("click", ()=>{
   state.X = X.toTensor();
   state.y = y.toTensor();
 
-  // Train/Test split (80/20)
-  const idx = tf.util.createShuffledIndices(rows);
-  const nTrain = Math.floor(rows*0.8);
-  const tr = idx.slice(0, nTrain), te = idx.slice(nTrain);
+ // Train/Test split (80/20)
+const rows = state.df.length;
+const idx = tf.util.createShuffledIndices(rows);
+const nTrain = Math.floor(rows * 0.8);
 
-  state.Xtrain = tf.gather(state.X, tr);
-  state.ytrain = tf.gather(state.y, tr);
-  state.Xtest  = tf.gather(state.X, te);
-  state.ytest  = tf.gather(state.y, te);
+// делаем обычные JS-массивы, затем int32-тензоры индексов
+const tr = Array.from(idx.slice(0, nTrain));
+const te = Array.from(idx.slice(nTrain));
 
-  setStatus(`Preprocessed: features=${featSize}, train=${nTrain}, test=${rows-nTrain}`);
-  $("#btn-build").disabled = false;
+const trIdx = tf.tensor1d(tr, 'int32');
+const teIdx = tf.tensor1d(te, 'int32');
+
+state.Xtrain = tf.gather(state.X, trIdx);
+state.ytrain = tf.gather(state.y, trIdx);
+state.Xtest  = tf.gather(state.X, teIdx);
+state.ytest  = tf.gather(state.y, teIdx);
+
+// освобождаем память
+trIdx.dispose();
+teIdx.dispose();
+
+setStatus(`Preprocessed: features=${featSize}, train=${nTrain}, test=${rows - nTrain}`);
+$("#btn-build").disabled = false;
 });
 
 // ---------- Build Model ----------
