@@ -111,7 +111,6 @@
   max-height: 260px;
 }
 
-
 /* карты и канвасы не «выпрыгивают» */
 #eda .card { overflow: hidden; }
 
@@ -122,6 +121,27 @@
   height: 260px !important;   /* ключевая строка */
   max-height: 260px;
 }
+   /* --- EDA tables span full width and are responsive --- */
+#eda .eda-tables{
+  /* растянуть на обе колонки родительской сетки #eda */
+  grid-column: 1 / -1;
+  /* внутри — адаптивные колонки: от 260px и шире */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* чуть компактнее карточки с таблицами */
+#eda .eda-tables .card { padding: 12px; }
+
+/* фикс верстки таблиц: фиксированный layout + перенос слов */
+#eda .eda-tables table{ table-layout: fixed; }
+#eda .eda-tables th,
+#eda .eda-tables td{
+  word-break: break-word;
+  white-space: normal;
+}
+
 </style>
 
 </head>
