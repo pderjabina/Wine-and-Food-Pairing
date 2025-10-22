@@ -81,6 +81,28 @@
     box-shadow:0 10px 40px rgba(0,0,0,.22);border-left:1px solid var(--border)}
 
   @media (max-width:980px){.row,.row-3,.metrics{grid-template-columns:1fr}}
+
+   /* ==== EDA layout fixes ==== */
+#eda .row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 980px) {
+  #eda .row { grid-template-columns: 1fr; }
+}
+
+/* карты и канвасы не «выпрыгивают» */
+#eda .card { overflow: hidden; }
+
+/* фиксируем визуальную высоту графиков */
+#eda canvas {
+  display: block;
+  width: 100% !important;
+  height: 260px !important;   /* ключевая строка */
+  max-height: 260px;
+}
 </style>
 
 </head>
