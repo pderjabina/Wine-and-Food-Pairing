@@ -375,7 +375,7 @@ m.add(tf.layers.dense({ units: 5, activation: 'softmax' }));
 
   // Новая версия: меньше шаг + label smoothing
   const opt  = tf.train.adam(3e-4); // 0.0003 вместо 0.003
-  const loss = tf.keras.losses.categoricalCrossentropy({ labelSmoothing: 0.05 });
+  const loss = 'categoricalCrossentropy';
 
 
   m.compile({
