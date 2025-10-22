@@ -35,6 +35,22 @@ function toTable(rows, headers){
   return `<table>${htmlHead}${htmlRows}</table>`;
 }
 function showHTML(id, html){ $(id).innerHTML = html; }
+function computeClassWeights(oneHotYtrain){
+  // oneHotYtrain: Tensor [N,5] с one-hot метками (классы 0..4)
+  const counts = oneHotYtrain.sum(0);        // [5]
+  const arr = counts.arraySync();            // [c0..c4]
+  const total = arr.reduce((a,b)=>a+b,0);
+  const mean  = total / arr.length;
+
+  // inverse-frequency с мягким клиппингом
+  const raw = arr.map(c => Math.max(0.5, Math.min(2.5, mean / (c || 1))));
+  // нормализуем к среднему ≈ 1.0
+  const scale = raw.reduce((a,b)=>a+b,0) / raw.length;
+  const weights = raw.map(w => w/scale);
+
+  return { 0: weights[0], 1: weights[1], 2: weights[2], 3: weights[3], 4: weights[4] };
+}
+
 
 // ---------- Load CSV ----------
 $("#csv-file").addEventListener("change", (e)=>{
@@ -212,17 +228,45 @@ $("#btn-build").addEventListener("click", ()=>{
 // ---------- Train ----------
 $("#btn-train").addEventListener("click", async ()=>{
   $("#btn-train").disabled = true;
-  const h = await state.model.fit(state.Xtrain, state.ytrain, {
+
+  const useBalanced = $("#cb-balanced")?.checked;
+
+  const callbacks = [
+    tfvis.show.fitCallbacks(
+      { name: 'Training', tab: 'Model' },
+      ['loss','val_loss','acc','val_acc'],
+      { callbacks: ['onEpochEnd'] }
+    ),
+    {
+      onEpochEnd: async (epoch, logs) => {
+        console.log(
+          `Epoch ${epoch + 1}: ` +
+          `loss=${logs.loss?.toFixed(3)}, val_loss=${logs.val_loss?.toFixed(3)}, ` +
+          `acc=${logs.acc?.toFixed(3)}, val_acc=${logs.val_acc?.toFixed(3)}`
+        );
+      }
+    }
+  ];
+
+  // общие параметры обучения
+  const fitArgs = {
     epochs: 30,
     batchSize: 32,
     validationSplit: 0.15,
     shuffle: true,
-    callbacks: tfvis.show.fitCallbacks(
-      { name: 'Training', tab: 'Model' },
-      ['loss','val_loss','acc','val_acc'],
-      { callbacks: ['onEpochEnd'] }
-    )
-  });
+    callbacks
+  };
+
+  // при включённом чекбоксе — считаем веса классов и передаём их в fit()
+  if (useBalanced) {
+    const cw = computeClassWeights(state.ytrain); // <- хелпер ты уже добавила выше
+    console.log('Using class weights:', cw);
+    fitArgs.classWeight = cw;
+  }
+
+  await state.model.fit(state.Xtrain, state.ytrain, fitArgs);
+  $("#btn-eval").disabled = false;
+});
   $("#btn-eval").disabled = false;
 });
 
