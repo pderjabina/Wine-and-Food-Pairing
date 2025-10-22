@@ -53,6 +53,13 @@ function computeClassWeights(oneHotYtrain){
 
   return { 0: weights[0], 1: weights[1], 2: weights[2], 3: weights[3], 4: weights[4] };
 }
+/* ----- Label smoothing helper (для one-hot тензоров) ----- */
+// Применяется к ТЕНЗОРАМ one-hot: y = y*(1-ε) + ε/K
+function applyLabelSmoothing(oneHotTensor, epsilon = 0.1, numClasses = 5){
+  // oneHotTensor: tf.Tensor2D [N, K]
+  const off = epsilon / numClasses;
+  return oneHotTensor.mul(1 - epsilon).add(off);
+}
 
 /* ----- Chart.js helpers for colorful EDA ----- */
 const charts = {};                                       // registry to re-render safely
@@ -315,12 +322,57 @@ $("#btn-build").disabled = false;
 $("#btn-build").addEventListener("click", ()=>{
   const inDim = state.X.shape[1];
   const m = tf.sequential();
-  m.add(tf.layers.dense({ units: Math.min(256, Math.round(inDim*0.75)+32), activation:'relu', inputShape:[inDim] }));
-  m.add(tf.layers.dropout({ rate: 0.25 }));
-  m.add(tf.layers.dense({ units: 128, activation:'relu' }));
-  m.add(tf.layers.dropout({ rate: 0.2 }));
-  m.add(tf.layers.dense({ units: 5, activation:'softmax' }));
-  m.compile({ optimizer: tf.train.adam(0.003), loss: 'categoricalCrossentropy', metrics: ['accuracy'] });
+
+  // Архитектура — без изменений
+  // НОВАЯ СХЕМА: шире + BatchNorm
+// 1) Первый блок
+m.add(tf.layers.dense({
+  units: Math.min(384, Math.round(inDim * 0.90) + 64), // стало шире
+  useBias: false,                                      // bias не нужен перед BN
+  inputShape: [inDim]
+}));
+m.add(tf.layers.batchNormalization());
+m.add(tf.layers.activation({ activation: 'relu' }));
+m.add(tf.layers.dropout({ rate: 0.25 }));
+
+// 2) Второй блок
+m.add(tf.layers.dense({
+  units: 192,                // было 128 → стало шире
+  useBias: false
+}));
+m.add(tf.layers.batchNormalization());
+m.add(tf.layers.activation({ activation: 'relu' }));
+m.add(tf.layers.dropout({ rate: 0.2 }));
+
+// 3) Классификатор
+m.add(tf.layers.dense({ units: 5, activation: 'softmax' }));
+
+  //old version
+  //m.add(tf.layers.dense({
+    //units: Math.min(256, Math.round(inDim*0.75)+32),
+    //activation:'relu',
+    //inputShape:[inDim]
+  //}));
+  //m.add(tf.layers.dropout({ rate: 0.25 }));
+  //m.add(tf.layers.dense({ units: 128, activation:'relu' }));
+  //m.add(tf.layers.dropout({ rate: 0.2 }));
+  //m.add(tf.layers.dense({ units: 5, activation:'softmax' }));
+
+  // ===== compile: ОБНОВЛЕНО =====
+  // Старая версия (можно быстро вернуть при необходимости):
+  // m.compile({ optimizer: tf.train.adam(0.003), loss: 'categoricalCrossentropy', metrics: ['accuracy'] });
+
+  // Новая версия: меньше шаг + label smoothing
+  const opt  = tf.train.adam(3e-4); // 0.0003 вместо 0.003
+  const loss = tf.losses.categoricalCrossentropy({ labelSmoothing: 0.05 });
+
+  m.compile({
+    optimizer: opt,
+    loss: loss,
+    metrics: ['accuracy']
+  });
+  // ===== конец обновления =====
+
   state.model = m;
 
   // Summary
@@ -329,6 +381,7 @@ $("#btn-build").addEventListener("click", ()=>{
   tfvis.show.modelSummary({ name:'Model Summary', tab:'Model' }, m);
   $("#btn-train").disabled = false;
 });
+
 
 // ---------- Train ----------
 $("#btn-train").addEventListener("click", async ()=>{
@@ -352,6 +405,38 @@ $("#btn-train").addEventListener("click", async ()=>{
       }
     }
   ];
+    // ------------------------------------------------------------------
+  // Label smoothing (опционально) — ВСТАВИТЬ ЗДЕСЬ, ПЕРЕД fitArgs/model.fit
+  // ------------------------------------------------------------------
+
+  // Готовим ссылки на one-hot метки из стейта (НЕ изменяем оригинал)
+  const yTrainRaw = state.ytrain;   // one-hot [N,5]
+  const yTestRaw  = state.ytest;    // one-hot [M,5]
+
+  // По умолчанию — без сглаживания
+  let yTrain = yTrainRaw;
+  let yTest  = yTestRaw;
+
+  // ВКЛ/ВЫКЛ label smoothing (можно привязать к чекбоксу)
+  const USE_SMOOTH = true;   // ← поставь false, если нужно быстро отключить
+  const EPS = 0.1;           // 0.05–0.1 обычно ок
+
+  if (USE_SMOOTH){
+    yTrain = applyLabelSmoothing(yTrainRaw, EPS, 5);
+    yTest  = applyLabelSmoothing(yTestRaw,  EPS, 5);
+  }
+
+  // храним оба варианта, чтобы не потерять "raw"
+//state.ytrain_raw = yTrainRaw;
+//state.ytest_raw  = yTestRaw;
+//state.ytrain     = yTrain;
+//state.ytest      = yTest;
+// -------------------------------------------------------
+
+  // Обновим state, если ниже логика опирается на state.ytrain/state.ytest
+  state.ytrain = yTrain;
+  state.ytest  = yTest;
+
 
   // общие параметры обучения
   const fitArgs = {
