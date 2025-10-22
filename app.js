@@ -222,7 +222,7 @@ $("#btn-eda").addEventListener("click", () => {
 
   // ---- Таблицы top-10 (под графиками)
   const tblRow = document.createElement("div");
-  tblRow.className = "row-3";
+  tblRow.className = "row-3 eda-tables";
 
   const mkTableCard = (title, pairs) => `
     <div class="card">
