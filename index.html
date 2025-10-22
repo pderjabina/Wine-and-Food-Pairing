@@ -181,5 +181,71 @@
   </div>
 
   <script src="app.js"></script>
+<script>
+window.addEventListener('load', () => {
+  const waitPanel = setInterval(() => {
+    const panel = document.querySelector('tf-vis-panel');
+    if (!panel) return;
+
+    clearInterval(waitPanel);
+    panel.style.position = 'fixed';
+    panel.style.right = '0';
+    panel.style.top = '0';
+    panel.style.zIndex = '9999';
+    panel.style.transition = 'right 0.4s ease';
+
+    // кнопка ⇔ для задвигания
+    const btn = document.createElement('button');
+    btn.textContent = '⇔';
+    Object.assign(btn.style, {
+      position: 'absolute',
+      left: '-25px',
+      top: '10px',
+      width: '25px',
+      height: '25px',
+      cursor: 'pointer',
+      borderRadius: '6px',
+      border: 'none',
+      background: '#6b4de6',
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: '16px',
+      lineHeight: '25px'
+    });
+    panel.appendChild(btn);
+
+    let hidden = false;
+    btn.onclick = () => {
+      hidden = !hidden;
+      panel.style.right = hidden ? '-50%' : '0';
+    };
+
+    // перетаскивание панели мышкой
+    let isDragging = false, startX, startRight;
+    panel.addEventListener('mousedown', (e) => {
+      if (e.target === btn) return; // не тянуть за кнопку
+      isDragging = true;
+      startX = e.clientX;
+      startRight = parseInt(panel.style.right) || 0;
+      panel.style.transition = 'none';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const delta = startX - e.clientX;
+      const newRight = Math.max(Math.min(startRight + delta, 0), -window.innerWidth * 0.5);
+      panel.style.right = `${newRight}px`;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        panel.style.transition = 'right 0.4s ease';
+      }
+    });
+  }, 500);
+});
+</script>
+
 </body>
 </html>
