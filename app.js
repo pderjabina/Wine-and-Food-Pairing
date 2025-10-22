@@ -133,9 +133,6 @@ function drawCuisineChart(counts){
   });
 }
 
-// ---------- Load CSV ----------
-
-
 
 // ---------- Load CSV ----------
 $("#csv-file").addEventListener("change", (e)=>{
@@ -210,8 +207,9 @@ drawWineCatChart(wcCounts);
 drawFoodCatChart(fcCounts);
 drawCuisineChart(cuCounts);
 
-/*
+
   // tfjs-vis bar charts
+  /*
   const surface1 = { name: 'Quality distribution', tab: 'EDA' };
   const qualSeries = qualCounts.map(([k,v])=>({ index:k, value:v }));
   tfvis.render.barchart(surface1, qualSeries, { xLabel:'Quality', yLabel:'Count' });
