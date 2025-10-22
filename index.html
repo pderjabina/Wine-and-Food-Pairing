@@ -84,13 +84,21 @@
             <li>2× Dense (ReLU, dropout), output: 5-way softmax (classes 1–5)</li>
             <li>Loss: categoricalCrossentropy, Metric: accuracy</li>
           </ul>
-          <div class="flex" style="margin-top:8px">
-            <button class="btn" id="btn-build" disabled>Build Model</button>
-            <button class="btn" id="btn-train" disabled>Train (80/20 split)</button>
-            <button class="btn" id="btn-eval" disabled>Evaluate</button>
-          </div>
-          <div id="model-summary"></div>
-          <div id="training-vis"></div>
+      <div class="flex" style="margin-top:8px; align-items:center; gap:12px">
+  <button class="btn" id="btn-build" disabled>Build Model</button>
+
+  <label style="display:flex; align-items:center; gap:6px; font-size:14px;">
+    <input type="checkbox" id="cb-balanced" />
+    Use class weights
+  </label>
+
+  <button class="btn" id="btn-train" disabled>Train (80/20 split)</button>
+  <button class="btn" id="btn-eval" disabled>Evaluate</button>
+</div>
+
+<div id="model-summary"></div>
+<div id="training-vis"></div>
+
         </div>
         <div class="card">
           <h3 style="margin-top:0">Metrics</h3>
