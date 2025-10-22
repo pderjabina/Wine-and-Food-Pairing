@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wine & Food Pairing — Neural Recommender (tf.js)</title>
+
+  <!-- Libs -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.5.1/dist/tfjs-vis.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root { --p:#6b46c1; --g:#f6f7fb; --b:#111827; --bd:#e5e7eb; }
+    *{ box-sizing:border-box }
+    body{ margin:0; font:16px/1.5 Inter,system-ui,Segoe UI,Roboto,Arial; color:var(--b); background:#fff }
+    .container{ max-width:1200px; margin:0 auto; padding:24px }
+    h1{ color:var(--p); margin:0 0 16px }
+    h2{ color:var(--p); margin:0 0 12px; font-size:20px }
+    section{ background:var(--g); border:1px solid var(--bd); border-radius:14px; padding:18px; margin:16px 0 }
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:16px }
+    .row-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px }
+    .btn{ background:var(--p); color:#fff; border:none; padding:10px 14px; border-radius:10px; cursor:pointer }
+    .btn:disabled{ opacity:.45; cursor:not-allowed }
+    label{ display:block; font-weight:600; margin-bottom:6px }
+    input[type=file]{ display:block; padding:8px; background:#fff; border:1px solid var(--bd); border-radius:10px; width:100% }
+    table{ border-collapse:collapse; width:100%; background:#fff; border-radius:10px; overflow:hidden }
+    th,td{ border:1px solid var(--bd); padding:8px; text-align:left }
+    th{ background:#f3f4f6 }
+    .card{ background:#fff; border:1px solid var(--bd); border-radius:12px; padding:12px }
+    .metrics{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px }
+    .note{ background:#fff; border-left:4px solid var(--p); padding:12px; border-radius:10px; }
+    .pill{ display:inline-block; background:#ede9fe; color:#4c1d95; padding:4px 8px; border-radius:999px; font-size:12px; margin-right:6px }
+    .flex{ display:flex; gap:10px; flex-wrap:wrap }
+    @media (max-width:900px){ .row, .row-3, .metrics{ grid-template-columns:1fr } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Wine & Food Pairing — Neural Recommender (TensorFlow.js)</h1>
+    <div class="note">
+      <div class="flex">
+        <span class="pill">EDA</span>
+        <span class="pill">One-Hot Encoding</span>
+        <span class="pill">Dense NN (5-class)</span>
+        <span class="pill">Confusion Matrix</span>
+        <span class="pill">Interactive Recommendation</span>
+      </div>
+      <p style="margin:8px 0 0">
+        Goal: predict <b>pairing_quality</b> (1–5) and power a simple <b>recommender</b> that helps a restaurant/menu app suggest better wine–food pairings.
+      </p>
+    </div>
+
+    <!-- 1. Data -->
+    <section>
+      <h2>1) Data</h2>
+      <div class="row">
+        <div>
+          <label for="csv-file">Upload <code>wine_food_pairings.csv</code></label>
+          <input id="csv-file" type="file" accept=".csv" />
+        </div>
+        <div class="card">
+          <b>Status:</b> <span id="status">Waiting for CSV…</span><br/>
+          <small>Columns: wine_type, wine_category, food_item, food_category, cuisine, pairing_quality, quality_label, description</small>
+        </div>
+      </div>
+      <div class="flex" style="margin-top:12px">
+        <button class="btn" id="btn-preview" disabled>Preview head()</button>
+        <button class="btn" id="btn-eda" disabled>Run EDA</button>
+        <button class="btn" id="btn-prep" disabled>Preprocess</button>
+      </div>
+      <div id="preview"></div>
+      <div id="eda"></div>
+    </section>
+
+    <!-- 2. Model -->
+    <section>
+      <h2>2) Modeling</h2>
+      <div class="row">
+        <div class="card">
+          <h3 style="margin-top:0">Architecture</h3>
+          <ul style="margin:6px 0 0 18px">
+            <li>Inputs: one-hot of categorical features (wine_type, wine_category, food_item, food_category, cuisine)</li>
+            <li>2× Dense (ReLU, dropout), output: 5-way softmax (classes 1–5)</li>
+            <li>Loss: categoricalCrossentropy, Metric: accuracy</li>
+          </ul>
+          <div class="flex" style="margin-top:8px">
+            <button class="btn" id="btn-build" disabled>Build Model</button>
+            <button class="btn" id="btn-train" disabled>Train (80/20 split)</button>
+            <button class="btn" id="btn-eval" disabled>Evaluate</button>
+          </div>
+          <div id="model-summary"></div>
+          <div id="training-vis"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Metrics</h3>
+          <div class="metrics">
+            <div>
+              <b>Accuracy:</b> <span id="m-acc">–</span><br/>
+              <b>Macro F1:</b> <span id="m-f1">–</span>
+            </div>
+            <div id="cm"></div>
+            <div id="class-report"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Prototype -->
+    <section>
+      <h2>3) Application Prototype: Interactive Recommendation</h2>
+      <div class="row">
+        <div class="card">
+          <h3 style="margin-top:0">Try a pairing</h3>
+          <div class="row">
+            <div>
+              <label>Wine Type</label>
+              <select id="sel-wine-type"></select>
+            </div>
+            <div>
+              <label>Wine Category</label>
+              <select id="sel-wine-cat"></select>
+            </div>
+            <div>
+              <label>Food Item</label>
+              <select id="sel-food-item"></select>
+            </div>
+            <div>
+              <label>Food Category</label>
+              <select id="sel-food-cat"></select>
+            </div>
+            <div>
+              <label>Cuisine</label>
+              <select id="sel-cuisine"></select>
+            </div>
+          </div>
+          <div class="flex" style="margin-top:12px">
+            <button class="btn" id="btn-predict" disabled>Predict Quality</button>
+            <button class="btn" id="btn-suggest" disabled>Suggest Better Wine</button>
+          </div>
+          <div id="pred-out" style="margin-top:10px"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Business Value</h3>
+          <p style="margin:0">
+            This model powers <b>menu intelligence</b>: for any dish, suggest wines with predicted score ≥4.
+            Restaurants can <b>increase check size</b> via upsell of better pairings, e-commerce can <b>personalize recommendations</b>,
+            and producers can spot <b>portfolio gaps</b> (dishes without high-scoring pairings).
+          </p>
+          <ul>
+            <li><b>KPI uplift:</b> +CTR on suggested pairings, +conversion, +avg basket value</li>
+            <li><b>Ops:</b> auto-curate wine lists for seasonal menus by cuisine/food category</li>
+            <li><b>Insights:</b> heatmaps of success by wine/food categories for procurement</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Export / Deploy -->
+    <section>
+      <h2>4) Export & Deploy</h2>
+      <div class="flex">
+        <button class="btn" id="btn-export" disabled>Export Model (.json + .bin)</button>
+      </div>
+      <div class="note" style="margin-top:10px">
+        <ol style="margin:0 0 0 18px">
+          <li>Commit <code>index.html</code>, <code>app.js</code>, and optionally <code>wine_food_pairings.csv</code> to a public repo</li>
+          <li>Enable GitHub Pages → Branch: <b>main</b> → Folder: <b>/root</b></li>
+          <li>PDF submission: include links to <b>app</b> and <b>code</b>, plus 1 slide on <b>business value</b></li>
+        </ol>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
