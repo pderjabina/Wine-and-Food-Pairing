@@ -172,8 +172,9 @@ $("#btn-preview").addEventListener("click", ()=>{
 
 // ---------- EDA ----------
 $("#btn-eda").addEventListener("click", ()=>{
-  const el = $("#eda");
-  el.innerHTML = "";
+  // 1) статы рисуем в отдельный контейнер
+  const statsEl = $("#eda-stats");
+  statsEl.innerHTML = "";
 
   // Basic stats
   const n = state.df.length;
@@ -191,39 +192,24 @@ $("#btn-eda").addEventListener("click", ()=>{
     </div>
     <div class="card"><b>Class balance (1–5):</b><div id="eda-qual"></div></div>
   `;
-  el.appendChild(statCard);
+  statsEl.appendChild(statCard);
 
-  // counts
-const qCounts = new Map(), wcCounts = new Map(), fcCounts = new Map(), cuCounts = new Map();
-for(const r of state.df){
-  qCounts.set(String(r.pairing_quality), (qCounts.get(String(r.pairing_quality))||0)+1);
-  wcCounts.set(r.wine_category, (wcCounts.get(r.wine_category)||0)+1);
-  fcCounts.set(r.food_category, (fcCounts.get(r.food_category)||0)+1);
-  cuCounts.set(r.cuisine, (cuCounts.get(r.cuisine)||0)+1);
-}
-// draw
-drawQualityChart(qCounts);
-drawWineCatChart(wcCounts);
-drawFoodCatChart(fcCounts);
-drawCuisineChart(cuCounts);
+  // 2) считаем частоты для канвасов (канвасы уже в разметке)
+  const qCounts = new Map(), wcCounts = new Map(), fcCounts = new Map(), cuCounts = new Map();
+  for(const r of state.df){
+    qCounts.set(String(r.pairing_quality), (qCounts.get(String(r.pairing_quality))||0)+1);
+    wcCounts.set(r.wine_category, (wcCounts.get(r.wine_category)||0)+1);
+    fcCounts.set(r.food_category, (fcCounts.get(r.food_category)||0)+1);
+    cuCounts.set(r.cuisine, (cuCounts.get(r.cuisine)||0)+1);
+  }
 
+  // 3) рисуем гистограммы Chart.js (цветовые палитры уже подключены в хелперах)
+  drawQualityChart(qCounts);
+  drawWineCatChart(wcCounts);
+  drawFoodCatChart(fcCounts);
+  drawCuisineChart(cuCounts);
 
-  // tfjs-vis bar charts
-  /*
-  const surface1 = { name: 'Quality distribution', tab: 'EDA' };
-  const qualSeries = qualCounts.map(([k,v])=>({ index:k, value:v }));
-  tfvis.render.barchart(surface1, qualSeries, { xLabel:'Quality', yLabel:'Count' });
-
-  const surface2 = { name: 'Wine categories', tab: 'EDA' };
-  tfvis.render.barchart(surface2, wc.slice(0,15).map(([k,v])=>({index:k, value:v})), { xLabel:'Wine category', yLabel:'Count' });
-
-  const surface3 = { name: 'Food categories', tab: 'EDA' };
-  tfvis.render.barchart(surface3, fc.slice(0,20).map(([k,v])=>({index:k, value:v})), { xLabel:'Food category', yLabel:'Count' });
-
-  const surface4 = { name: 'Cuisines', tab: 'EDA' };
-  tfvis.render.barchart(surface4, cu.slice(0,20).map(([k,v])=>({index:k, value:v})), { xLabel:'Cuisine', yLabel:'Count' });
-*/
-  // HTML top-10 tables
+  // 4) HTML топ-10 (оставляем как было)
   const tblRow = document.createElement("div");
   tblRow.className = "row-3";
   const mkTableCard = (title, pairs) => `
@@ -234,8 +220,9 @@ drawCuisineChart(cuCounts);
   tblRow.innerHTML = mkTableCard("Top Wine Types", countBy(state.df, "wine_type"))
                    + mkTableCard("Top Food Items", countBy(state.df, "food_item"))
                    + mkTableCard("Top Cuisines", cu);
-  el.appendChild(tblRow);
+  statsEl.appendChild(tblRow);
 });
+
 
 // ---------- Preprocess ----------
 $("#btn-prep").addEventListener("click", ()=>{
