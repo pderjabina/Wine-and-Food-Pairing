@@ -20,6 +20,17 @@ const state = {
 
 // ---------- Helpers ----------
 // ---------- Helpers ----------
+
+// ===== Helpers: UI state when model is ready =====
+function setModelReadyUI(hasDataForEval=false){
+  $("#btn-predict").disabled = false;
+  $("#btn-suggest").disabled = false;
+  if(hasDataForEval) { $("#btn-eval").disabled = false; }
+  // training/build disable to avoid confusion when using a pretrained model
+  $("#btn-build").disabled = true;
+  $("#btn-train").disabled = true;
+}
+
 const $ = (sel) => document.querySelector(sel);
 const setStatus = (msg) => $("#status").textContent = msg;
 
@@ -392,7 +403,7 @@ $("#btn-train").addEventListener("click", async ()=>{
   const callbacks = [
     tfvis.show.fitCallbacks(
       { name: 'Training', tab: 'Model' },
-      ['loss','val_loss','acc','val_acc'],
+      ['loss','val_loss','accuracy','val_accuracy'],
       { callbacks: ['onEpochEnd'] }
     ),
     {
@@ -400,7 +411,7 @@ $("#btn-train").addEventListener("click", async ()=>{
         console.log(
           `Epoch ${epoch + 1}: ` +
           `loss=${logs.loss?.toFixed(3)}, val_loss=${logs.val_loss?.toFixed(3)}, ` +
-          `acc=${logs.acc?.toFixed(3)}, val_acc=${logs.val_acc?.toFixed(3)}`
+          `acc=${logs.accuracy?.toFixed(3)}, val_acc=${logs.val_accuracy?.toFixed(3)}`
         );
       }
     }
@@ -586,8 +597,102 @@ function guessWineCategory(wineType){
   return null;
 }
 
+
+// ---------- Export vocabs.json ----------
+document.getElementById("btn-export-vocabs")?.addEventListener("click", ()=>{
+  if(!state.vocabs || Object.keys(state.vocabs).length===0){
+    alert("Prepare data first to build vocabularies (Preprocess).");
+    return;
+  }
+  const blob = new Blob([JSON.stringify(state.vocabs, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "vocabs.json";
+  a.click();
+});
+
+
 // ---------- Export ----------
 $("#btn-export").addEventListener("click", async ()=>{
   await state.model.save('downloads://wine_food_nn');
   alert('Model files saved (JSON + weights BIN).');
+});
+
+
+// ---------- Load Pretrained (URL) ----------
+async function loadPretrainedFromURL(modelUrl, vocabsUrl){
+  try{
+    setStatus("Loading pretrained model…");
+    const m = await tf.loadLayersModel(modelUrl);
+    state.model = m;
+
+    // Load vocabs (for UI + one-hot construction)
+    if(vocabsUrl){
+      const res = await fetch(vocabsUrl);
+      if(res.ok){
+        state.vocabs = await res.json();
+        // Fill selects if we have vocabs ready
+        const fillSel = (id, arr)=>{ const s=$(id); if(!s) return; s.innerHTML=""; for(const v of arr){ const opt=document.createElement("option"); opt.value=v; opt.textContent=v; s.appendChild(opt);} };
+        fillSel("#sel-wine-type", state.vocabs.wine_type || []);
+        fillSel("#sel-wine-cat",  state.vocabs.wine_category || []);
+        fillSel("#sel-food-item", state.vocabs.food_item || []);
+        fillSel("#sel-food-cat",  state.vocabs.food_category || []);
+        fillSel("#sel-cuisine",   state.vocabs.cuisine || []);
+      } else {
+        console.warn("Failed to load vocabs.json:", vocabsUrl);
+      }
+    }
+
+    // Model summary to tfjs-vis
+    tfvis.show.modelSummary({ name:'Loaded Model', tab:'Model' }, state.model);
+    setStatus("Pretrained model loaded.");
+    setModelReadyUI(false); // no eval unless we also preprocessed data
+  }catch(err){
+    console.error(err);
+    alert("Failed to load pretrained model. Check URL and CORS.");
+    setStatus("Pretrained load failed.");
+  }
+}
+
+document.getElementById("btn-load-url")?.addEventListener("click", async ()=>{
+  const urlInput = document.getElementById("pretrained-url");
+  const modelUrl = urlInput?.value?.trim();
+  if(!modelUrl){ alert("Provide model.json URL"); return; }
+  // Try auto vocabs path next to model.json
+  let vocabsUrl = "";
+  try{
+    const u = new URL(modelUrl, window.location.href);
+    const parts = u.pathname.split("/");
+    parts.pop(); // remove model.json
+    vocabsUrl = new URL(parts.join("/") + "/vocabs.json", u.origin).toString();
+  }catch(_){ vocabsUrl = ""; }
+  await loadPretrainedFromURL(modelUrl, vocabsUrl);
+});
+
+
+// ---------- Load Pretrained (Files) ----------
+document.getElementById("files-model")?.addEventListener("change", async (e)=>{
+  const files = Array.from(e.target.files || []);
+  if(files.length < 2){
+    alert("Select both model.json and weights file(s).");
+    return;
+  }
+  const json = files.find(f=>f.name.endsWith(".json"));
+  const bins  = files.filter(f=>f.name.endsWith(".bin"));
+  if(!json || bins.length===0){
+    alert("Select model.json and at least one .bin file.");
+    return;
+  }
+  try{
+    setStatus("Loading pretrained (browserFiles)…");
+    const m = await tf.loadLayersModel(tf.io.browserFiles([json, ...bins]));
+    state.model = m;
+    tfvis.show.modelSummary({ name:'Loaded Model', tab:'Model' }, state.model);
+    setStatus("Pretrained model loaded from files.");
+    setModelReadyUI(false);
+  }catch(err){
+    console.error(err);
+    alert("Failed to load from files.");
+    setStatus("Pretrained load failed.");
+  }
 });

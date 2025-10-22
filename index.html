@@ -342,6 +342,41 @@
           <li>PDF submission: include links to <b>app</b> and <b>code</b>, plus 1 slide on <b>business value</b></li>
         </ol>
       </div>
+    
+      <div class="note" style="margin-top:10px">
+        <h3 style="margin:6px 0">Pretrained Model (skip training on demo)</h3>
+        <div class="row">
+          <div class="card">
+            <label>model.json URL (GitHub Pages)</label>
+            <input id="pretrained-url" type="text" placeholder="./assets/model/model.json" value="./assets/model/model.json"/>
+            <div style="height:8px"></div>
+            <button class="btn" id="btn-load-url">Load Pretrained (URL)</button>
+            <p style="margin-top:8px"><small>Place <code>model.json</code>, weight shards, and <code>vocabs.json</code> in <code>/assets/model/</code> of your repo.</small></p>
+          </div>
+          <div class="card">
+            <label>Load from files (model.json + weights)</label>
+            <input id="files-model" type="file" multiple accept=".json,.bin" />
+            <p style="margin-top:8px"><small>Useful for local demo or when CORS blocks direct URL loading.</small></p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="card">
+            <h4 style="margin:0 0 6px">Export vocabularies</h4>
+            <p style="margin:0 0 8px;color:var(--muted)">Save <code>vocabs.json</code> right after Preprocess → commit next to model for Pages.</p>
+            <button class="btn" id="btn-export-vocabs">Export vocabs.json</button>
+          </div>
+          <div class="card">
+            <h4 style="margin:0 0 6px">How to deploy</h4>
+            <ol style="margin:0 0 0 18px">
+              <li>Run Preprocess → Train → Evaluate (once on your machine)</li>
+              <li>Export: <b>Export Model</b> and <b>Export vocabs.json</b></li>
+              <li>Commit files to <code>/assets/model/</code> and publish via GitHub Pages</li>
+              <li>During defense: just click <b>Load Pretrained (URL)</b> — no training needed</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
     </section>
   </div>
 
