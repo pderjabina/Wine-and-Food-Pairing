@@ -92,6 +92,25 @@
 @media (max-width: 980px) {
   #eda .row { grid-template-columns: 1fr; }
 }
+   /* ==== EDA layout (fix height & grid) ==== */
+#eda {                       /* сами графики в 2 колонки */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width:980px){
+  #eda { grid-template-columns: 1fr; }
+}
+
+#eda .card{ overflow: hidden; }  /* канвас не “выпрыгивает” */
+
+#eda canvas{                     /* ключ: жёсткая визуальная высота */
+  display: block;
+  width: 100% !important;
+  height: 260px !important;
+  max-height: 260px;
+}
+
 
 /* карты и канвасы не «выпрыгивают» */
 #eda .card { overflow: hidden; }
@@ -153,10 +172,12 @@
         <button class="btn" id="btn-prep" disabled>Preprocess</button>
       </div>
       <div id="preview"></div>
-      <div id="eda"></div>
-      
-   <!--
-<div class="row">
+
+<!-- сюда будем подливать маленькие “статы” EDA -->
+<div id="eda-stats" class="row"></div>
+
+<!-- а тут живут сами графики EDA -->
+<div id="eda" class="row">
   <div class="card">
     <h3>Quality distribution</h3>
     <canvas id="eda-quality" height="220"></canvas>
@@ -174,7 +195,6 @@
     <canvas id="eda-cuisines" height="220"></canvas>
   </div>
 </div>
--->
 
 
     </section>
