@@ -166,12 +166,11 @@ $("#btn-prep").addEventListener("click", ()=>{
   state.y = y.toTensor();
 
 // Train/Test split (80/20)
-// НЕ объявляем снова rows — он уже есть выше
-const nRows  = state.df.length;
-const idx    = tf.util.createShuffledIndices(nRows);
-const nTrain = Math.floor(nRows * 0.8);
+// здесь мы НЕ объявляем rows заново — он уже есть выше
+const idx = tf.util.createShuffledIndices(rows);
+const nTrain = Math.floor(rows * 0.8);
 
-// делаем обычные массивы и int32-тензоры индексов
+// делаем обычные JS-массивы, потом int32-тензоры индексов
 const tr = Array.from(idx.slice(0, nTrain));
 const te = Array.from(idx.slice(nTrain));
 
@@ -186,8 +185,9 @@ state.ytest  = tf.gather(state.y, teIdx);
 trIdx.dispose();
 teIdx.dispose();
 
-setStatus(`Preprocessed: features=${featSize}, train=${nTrain}, test=${nRows - nTrain}`);
+setStatus(`Preprocessed: features=${featSize}, train=${nTrain}, test=${rows - nTrain}`);
 $("#btn-build").disabled = false;
+
 });
 
 // ---------- Build Model ----------
