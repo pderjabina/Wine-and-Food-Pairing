@@ -365,8 +365,6 @@ $("#btn-train").addEventListener("click", async ()=>{
   await state.model.fit(state.Xtrain, state.ytrain, fitArgs);
   $("#btn-eval").disabled = false;
 });
-  $("#btn-eval").disabled = false;
-});
 
 // ---------- Evaluate ----------
 $("#btn-eval").addEventListener("click", async ()=>{
